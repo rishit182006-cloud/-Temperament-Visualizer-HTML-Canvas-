@@ -407,12 +407,18 @@
                 const ratio = Math.pow(2, i / temp.steps);
                 const angle = (360 * i / temp.steps) - 90; // Start from top
                 const freq = base * ratio;
+                let name = `Step ${i}`;
+                if (tempKey === '12-edo') {
+                    name = NOTE_NAMES_12[i % 12] + (i === 12 ? ' (Octave)' : '');
+                } else if (i === temp.steps) {
+                    name = 'Octave';
+                }
                 calculated.push({
                     step: i,
                     ratio: ratio,
                     angle: angle,
                     freq: freq,
-                    name: i === temp.steps ? 'Octave' : `Step ${i}`
+                    name: name
                 });
             }
         } else if (temp.type === 'ratio') {
