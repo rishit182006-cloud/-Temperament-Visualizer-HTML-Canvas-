@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperament Visualizer | Explore Musical Tuning</title>
+    <meta name="description" content="An interactive musical temperament visualizer exploring EDO and Just Intonation systems using Canvas and JavaScript.">
+    <style>
+        :root {
+            --bg-color: #0a0a0c;
+            --panel-bg: #16161e;
+            --text-main: #e0e0e6;
+            --text-dim: #9494a5;
+            --primary: #00f2ff;
+            --primary-glow: rgba(0, 242, 255, 0.4);
+            --secondary: #7e3ff2;
+            --reference: #4a4a5a;
+            --highlight: #ff9d00;
+            --success: #00ff88;
+            --warning: #ffcc00;
+            --error: #ff4444;
+            --border: #2d2d3d;
+            --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            line-height: 1.6;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            width: 100%;
+            padding: 2rem 1rem;
+            text-align: center;
+            background: linear-gradient(to bottom, #111, transparent);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 1rem;
+        }
+
+        main {
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            padding: 1rem;
+            flex-grow: 1;
+        }
+
+        @media (max-width: 1000px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .viz-container {
+            position: relative;
+            background: var(--panel-bg);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        canvas {
+            max-width: 100%;
+            cursor: crosshair;
+        }
+
+        .controls {
+            background: var(--panel-bg);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: fit-content;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        select, button {
+            background: #252533;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:hover, button:hover {
+            border-color: var(--primary);
+            background: #2d2d3d;
+        }
+
+        button.active {
+            background: var(--primary);
+            color: black;
+            font-weight: 700;
+            border-color: var(--primary);
+        }
+
+        .info-panel {
+            grid-column: 1 / -1;
+            background: var(--panel-bg);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            color: var(--text-dim);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .cents-tag {
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .tag-green { background: rgba(0, 255, 136, 0.2); color: #00ff88; }
+        .tag-yellow { background: rgba(255, 204, 0, 0.2); color: #ffcc00; }
+        .tag-red { background: rgba(255, 68, 68, 0.2); color: #ff4444; }
+
+        .interval-info {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--highlight);
+            display: none;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 0.5rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            border: 1px solid var(--border);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 var(--primary-glow); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 242, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Temperament Visualizer</h1>
+    <p class="subtitle">Exploring the geometry of musical tuning systems</p>
+</header>
+
+<main>
+    <div class="viz-container">
+        <div id="intervalDisplay" class="interval-info">
+            <div style="color: var(--highlight); font-weight: bold; margin-bottom: 4px;">Selected Interval</div>
+            <div id="intervalRatio">Ratio: 1.500</div>
+            <div id="intervalCents">Cents: 701.9</div>
+            <div id="intervalDeviation" style="font-size: 0.8rem; color: var(--text-dim);">Dev: +1.9c</div>
+        </div>
+        <canvas id="tuningCanvas"></canvas>
+        <div class="legend">
+            <div class="legend-item"><div class="dot" style="background: var(--primary);"></div> Active Notes</div>
+            <div class="legend-item" id="refLegend" style="display: none;"><div class="dot" style="background: var(--reference);"></div> 12-TET Reference</div>
+            <div class="legend-item"><div class="dot" style="background: var(--highlight);"></div> Selection</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="temperamentSelect">Temperament System</label>
+            <select id="temperamentSelect">
+                <option value="12-edo">12-TET (Equal)</option>
+                <option value="5-edo">5-EDO</option>
+                <option value="7-edo">7-EDO</option>
+                <option value="19-edo">19-EDO</option>
+                <option value="31-edo">31-EDO</option>
+                <option value="just">Just Intonation (Major)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Comparison</label>
+            <button id="compareToggle">Compare with 12-TET: OFF</button>
+        </div>
+
+        <div class="control-group">
+            <label>Base Frequency (A4)</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="baseFreq" value="440" step="1" style="width: 80px; background: #252533; border: 1px solid var(--border); color: white; border-radius: 8px; padding: 0.5rem;">
+                <span style="align-self: center;">Hz</span>
+            </div>
+        </div>
+
+        <div style="margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border);">
+            <p style="font-size: 0.8rem; color: var(--text-dim);">
+                Click two notes on the circle to measure the interval between them.
+            </p>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <table id="noteTable">
+            <thead>
+                <tr>
+                    <th>Step</th>
+                    <th>Note / Ratio</th>
+                    <th>Frequency (Hz)</th>
+                    <th>Angle (°)</th>
+                    <th>Cents from 12-TET</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Data populated via JS -->
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+    const canvas = document.getElementById('tuningCanvas');
+    const ctx = canvas.getContext('2d');
+    const tempSelect = document.getElementById('temperamentSelect');
+    const compareBtn = document.getElementById('compareToggle');
+    const tableBody = document.getElementById('tableBody');
+    const baseFreqInput = document.getElementById('baseFreq');
+    const intervalDisplay = document.getElementById('intervalDisplay');
+    const tooltip = document.getElementById('tooltip');
+
+    let width, height, centerX, centerY, radius;
+    let currentTemperament = '12-edo';
+    let compareMode = false;
+    let selectedNotes = [];
+    let notes = [];
+    let refNotes = [];
+    let animationProgress = 1;
+    let lastNotes = [];
+
+    const TEMPERAMENTS = {
+        '12-edo': { name: '12-TET', steps: 12, type: 'edo' },
+        '5-edo': { name: '5-EDO', steps: 5, type: 'edo' },
+        '7-edo': { name: '7-EDO', steps: 7, type: 'edo' },
+        '19-edo': { name: '19-EDO', steps: 19, type: 'edo' },
+        '31-edo': { name: '31-EDO', steps: 31, type: 'edo' },
+        'just': { 
+            name: 'Just Intonation', 
+            type: 'ratio', 
+            ratios: [
+                { r: 1/1, n: '1/1 (Unison)' },
+                { r: 9/8, n: '9/8 (Maj 2nd)' },
+                { r: 5/4, n: '5/4 (Maj 3rd)' },
+                { r: 4/3, n: '4/3 (Perf 4th)' },
+                { r: 3/2, n: '3/2 (Perf 5th)' },
+                { r: 5/3, n: '5/3 (Maj 6th)' },
+                { r: 15/8, n: '15/8 (Maj 7th)' },
+                { r: 2/1, n: '2/1 (Octave)' }
+            ]
+        }
+    };
+
+    function init() {
+        resize();
+        window.addEventListener('resize', resize);
+        tempSelect.addEventListener('change', (e) => {
+            lastNotes = JSON.parse(JSON.stringify(notes));
+            currentTemperament = e.target.value;
+            selectedNotes = [];
+            animationProgress = 0;
+            update();
+        });
+
+        compareBtn.addEventListener('click', () => {
+            compareMode = !compareMode;
+            compareBtn.textContent = `Compare with 12-TET: ${compareMode ? 'ON' : 'OFF'}`;
+            compareBtn.classList.toggle('active', compareMode);
+            document.getElementById('refLegend').style.display = compareMode ? 'flex' : 'none';
+            draw();
+        });
+
+        canvas.addEventListener('mousedown', handleCanvasClick);
+        canvas.addEventListener('mousemove', handleCanvasHover);
+        baseFreqInput.addEventListener('input', update);
+
+        update();
+        animate();
+    }
+
+    function resize() {
+        const size = Math.min(window.innerWidth - 40, 600);
+        canvas.width = size;
+        canvas.height = size;
+        width = canvas.width;
+        height = canvas.height;
+        centerX = width / 2;
+        centerY = height / 2;
+        radius = width * 0.4;
+        draw();
+    }
+
+    function calculateNotes(tempKey) {
+        const temp = TEMPERAMENTS[tempKey];
+        const base = parseFloat(baseFreqInput.value);
+        const calculated = [];
+
+        if (temp.type === 'edo') {
+            for (let i = 0; i <= temp.steps; i++) {
+                const ratio = Math.pow(2, i / temp.steps);
+                const angle = (360 * i / temp.steps) - 90; // Start from top
+                const freq = base * ratio;
+                calculated.push({
+                    step: i,
+                    ratio: ratio,
+                    angle: angle,
+                    freq: freq,
+                    name: i === temp.steps ? 'Octave' : `Step ${i}`
+                });
+            }
+        } else if (temp.type === 'ratio') {
+            temp.ratios.forEach((item, i) => {
+                const angle = (360 * Math.log2(item.r)) - 90;
+                calculated.push({
+                    step: i,
+                    ratio: item.r,
+                    angle: angle,
+                    freq: base * item.r,
+                    name: item.n
+                });
+            });
+        }
+        return calculated;
+    }
+
+    function getCentsDeviation(freq) {
+        const base = parseFloat(baseFreqInput.value);
+        const stepsFromBase = 12 * Math.log2(freq / base);
+        const nearestStep = Math.round(stepsFromBase);
+        const nearestEqualFreq = base * Math.pow(2, nearestStep / 12);
+        const cents = 1200 * Math.log2(freq / nearestEqualFreq);
+        return cents;
+    }
+
+    function update() {
+        notes = calculateNotes(currentTemperament);
+        refNotes = calculateNotes('12-edo');
+        updateTable();
+        draw();
+    }
+
+    function updateTable() {
+        tableBody.innerHTML = '';
+        notes.forEach((note, i) => {
+            const cents = getCentsDeviation(note.freq);
+            const absCents = Math.abs(cents);
+            let tagClass = 'tag-green';
+            if (absCents > 15) tagClass = 'tag-red';
+            else if (absCents > 5) tagClass = 'tag-yellow';
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${note.step}</td>
+                <td>${note.name}</td>
+                <td>${note.freq.toFixed(2)} Hz</td>
+                <td>${((note.angle + 90 + 360) % 360).toFixed(1)}°</td>
+                <td><span class="cents-tag ${tagClass}">${cents > 0 ? '+' : ''}${cents.toFixed(1)}c</span></td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+
+        // Draw background circles
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius * 0.7, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Draw 12-TET Reference
+        if (compareMode || currentTemperament !== '12-edo') {
+            refNotes.forEach(note => {
+                drawNote(note, 'rgba(255,255,255,0.1)', 3, false);
+            });
+        }
+
+        // Draw active temperament notes
+        notes.forEach((note, i) => {
+            let displayAngle = note.angle;
+            
+            if (animationProgress < 1 && lastNotes[i]) {
+                const prevAngle = lastNotes[i].angle;
+                displayAngle = prevAngle + (note.angle - prevAngle) * animationProgress;
+            }
+
+            const isSelected = selectedNotes.includes(i);
+            const color = isSelected ? 'var(--highlight)' : 'var(--primary)';
+            drawNote({...note, angle: displayAngle}, color, isSelected ? 8 : 5, true);
+        });
+
+        if (selectedNotes.length === 2) {
+            drawIntervalArc();
+        }
+    }
+
+    function drawNote(note, color, size, showLine) {
+        const rad = note.angle * Math.PI / 180;
+        const x = centerX + radius * Math.cos(rad);
+        const y = centerY + radius * Math.sin(rad);
+
+        if (showLine) {
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(x, y);
+            ctx.strokeStyle = color.includes('var') ? getComputedStyle(document.documentElement).getPropertyValue(color.replace('var(','').replace(')','')) : color;
+            ctx.globalAlpha = 0.2;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = color.includes('var') ? getComputedStyle(document.documentElement).getPropertyValue(color.replace('var(','').replace(')','')) : color;
+        ctx.fill();
+
+        if (size > 5) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+    }
+
+    function drawIntervalArc() {
+        const n1 = notes[selectedNotes[0]];
+        const n2 = notes[selectedNotes[1]];
+        
+        const startRad = n1.angle * Math.PI / 180;
+        const endRad = n2.angle * Math.PI / 180;
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius + 15, startRad, endRad, n1.angle > n2.angle);
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--highlight');
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        const ratio = n2.ratio / n1.ratio;
+        const cents = 1200 * Math.log2(Math.abs(ratio));
+        
+        intervalDisplay.style.display = 'block';
+        document.getElementById('intervalRatio').textContent = `Ratio: ${Math.abs(ratio).toFixed(4)}`;
+        document.getElementById('intervalCents').textContent = `Cents: ${Math.abs(cents).toFixed(1)}`;
+        
+        const commonIntervals = [
+            {n: 'P1', r: 1.0, c: 0},
+            {n: 'm2', r: 16/15, c: 111.7},
+            {n: 'M2', r: 9/8, c: 203.9},
+            {n: 'm3', r: 6/5, c: 315.6},
+            {n: 'M3', r: 5/4, c: 386.3},
+            {n: 'P4', r: 4/3, c: 498.0},
+            {n: 'TT', r: 45/32, c: 590.2},
+            {n: 'P5', r: 3/2, c: 702.0},
+            {n: 'm6', r: 8/5, c: 813.7},
+            {n: 'M6', r: 5/3, c: 884.4},
+            {n: 'm7', r: 9/5, c: 1017.6},
+            {n: 'M7', r: 15/8, c: 1088.3},
+            {n: 'P8', r: 2.0, c: 1200}
+        ];
+
+        let bestFit = commonIntervals[0];
+        let minDiff = 1200;
+        const normCents = Math.abs(cents) % 1200;
+
+        commonIntervals.forEach(int => {
+            const diff = Math.abs(normCents - int.c);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestFit = int;
+            }
+        });
+
+        const dev = normCents - bestFit.c;
+        document.getElementById('intervalDeviation').textContent = `Dev from pure ${bestFit.n}: ${dev > 0 ? '+' : ''}${dev.toFixed(1)}c`;
+    }
+
+    function handleCanvasClick(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        let closest = -1;
+        let minDist = 20;
+
+        notes.forEach((note, i) => {
+            const rad = note.angle * Math.PI / 180;
+            const x = centerX + radius * Math.cos(rad);
+            const y = centerY + radius * Math.sin(rad);
+            const dist = Math.hypot(mouseX - x, mouseY - y);
+
+            if (dist < minDist) {
+                minDist = dist;
+                closest = i;
+            }
+        });
+
+        if (closest !== -1) {
+            if (selectedNotes.includes(closest)) {
+                selectedNotes = selectedNotes.filter(n => n !== closest);
+            } else {
+                if (selectedNotes.length >= 2) selectedNotes.shift();
+                selectedNotes.push(closest);
+            }
+            if (selectedNotes.length < 2) intervalDisplay.style.display = 'none';
+            draw();
+        } else {
+            selectedNotes = [];
+            intervalDisplay.style.display = 'none';
+            draw();
+        }
+    }
+
+    function handleCanvasHover(e) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        let hovered = -1;
+        notes.forEach((note, i) => {
+            const rad = note.angle * Math.PI / 180;
+            const x = centerX + radius * Math.cos(rad);
+            const y = centerY + radius * Math.sin(rad);
+            const dist = Math.hypot(mouseX - x, mouseY - y);
+            if (dist < 10) hovered = i;
+        });
+
+        if (hovered !== -1) {
+            const note = notes[hovered];
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX + 10) + 'px';
+            tooltip.style.top = (e.clientY + 10) + 'px';
+            tooltip.textContent = `${note.name}: ${note.freq.toFixed(2)} Hz`;
+            canvas.style.cursor = 'pointer';
+        } else {
+            tooltip.style.display = 'none';
+            canvas.style.cursor = 'crosshair';
+        }
+    }
+
+    function animate() {
+        if (animationProgress < 1) {
+            animationProgress += 0.05;
+            if (animationProgress > 1) animationProgress = 1;
+            draw();
+        }
+        requestAnimationFrame(animate);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
